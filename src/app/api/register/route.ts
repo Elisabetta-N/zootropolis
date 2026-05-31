@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcrypt";
 
-export async function POST(req: Request) {
+export async function GET(req: Request) {
   const { nome, email, password } = await req.json();
 
   const existing = await prisma.user.findUnique({
