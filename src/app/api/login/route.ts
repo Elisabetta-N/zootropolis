@@ -1,7 +1,7 @@
-export async function POST(req: Request) {
-  const body = await req.json();
+export async function GET() {
+  return Response.json({ ok: true });
+}
 
-  console.log(body);
-
-  return Response.json({ message: "login ok" });
+export async function POST() {
+  return Response.json({ ok: "post works" });
 }
