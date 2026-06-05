@@ -32,20 +32,26 @@ export default function RegisterForm() {
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message);
+      let data: { message?: string; redirect?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        alert(
+          "Il server non risponde. Avvia l'app con: npm run dev"
+        );
         return;
       }
 
-      alert("Registrazione completata!");
+      if (!res.ok) {
+        alert(data.message ?? "Registrazione non riuscita");
+        return;
+      }
 
-      // vai al login dopo registrazione
-      router.push("/");
-
-    } catch (err) {
-      alert("Errore di connessione");
+      router.push(data.redirect ?? "/dashboard");
+    } catch {
+      alert(
+        "Errore di connessione. Verifica che il server sia avviato (npm run dev)."
+      );
     } finally {
       setLoading(false);
     }

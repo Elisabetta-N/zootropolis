@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Role } from "@/lib/roles";
 
-export default function LoginForm() {
+type Props = {
+  expectedRole: Role;
+};
+
+export default function LoginForm({ expectedRole }: Props) {
   const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,21 +22,33 @@ export default function LoginForm() {
       const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          expectedRole,
+        }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message);
+      let data: { message?: string; redirect?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        alert(
+          "Il server non risponde. Avvia l'app con: npm run dev"
+        );
         return;
       }
 
-      // login OK → vai alla dashboard
-      router.push("/dashboard");
+      if (!res.ok) {
+        alert(data.message ?? "Accesso non riuscito");
+        return;
+      }
 
-    } catch (err) {
-      alert("Errore di connessione");
+      router.push(data.redirect ?? "/dashboard");
+    } catch {
+      alert(
+        "Errore di connessione. Verifica che il server sia avviato (npm run dev)."
+      );
     } finally {
       setLoading(false);
     }
@@ -66,9 +82,7 @@ export default function LoginForm() {
         {loading ? "Accesso..." : "Accedi"}
       </button>
 
-      <div className="bottom-text">
-        Ben tornato a Zootropolis 🚀
-      </div>
+      <div className="bottom-text">Ben tornato a Zootropolis 🚀</div>
     </form>
   );
 }

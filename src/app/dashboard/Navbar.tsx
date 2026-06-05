@@ -1,23 +1,35 @@
-export default function Navbar() {
-  return (
-    <div
-      style={{
-        height: 60,
-        background: "#ff9800",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 20px",
-        fontWeight: "bold",
-      }}
-    >
-      🚲 Zootropolis
+"use client";
 
-      <div style={{ display: "flex", gap: 20 }}>
-        <span>Profilo</span>
-        <span>Mezzi</span>
-        <span>Prenotazioni</span>
+import type { Panel } from "./types";
+
+type Props = {
+  activePanel: Panel;
+  onNavigate: (panel: Panel) => void;
+};
+
+export default function Navbar({ activePanel, onNavigate }: Props) {
+  const links: { key: Panel; label: string }[] = [
+    { key: "profile", label: "Profilo" },
+    { key: "bookings", label: "Prenotazioni" },
+    { key: "settings", label: "Impostazioni" },
+  ];
+
+  return (
+    <nav className="dash-navbar">
+      <span className="dash-brand">🚲 Zootropolis</span>
+
+      <div className="dash-nav-links">
+        {links.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            className={`dash-nav-btn ${activePanel === key ? "dash-nav-btn--active" : ""}`}
+            onClick={() => onNavigate(activePanel === key ? null : key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-    </div>
+    </nav>
   );
 }

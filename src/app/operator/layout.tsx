@@ -1,6 +1,6 @@
 import "leaflet/dist/leaflet.css";
 
-export default function DashboardLayout({
+export default function OperatorLayout({
   children,
 }: {
   children: React.ReactNode;
