@@ -20,6 +20,7 @@ model User {
   paymentBrand         String              @default("visa")
   createdAt            DateTime            @default(now())
   notifications        Boolean             @default(true)
+  suspended            Boolean             @default(false)
   bookings             Booking[]
   messages             SupportMessage[]
   maintenanceReports   UrbanMaintenance[]
@@ -34,6 +35,9 @@ model Vehicle {
   status       String    @default("available")
   hasFault     Boolean   @default(false)
   faultNote    String?
+  blocked      Boolean   @default(false)
+  stolen       Boolean   @default(false)
+  stolenAt     DateTime?
   bookings     Booking[]
 }
 
@@ -73,4 +77,23 @@ model UrbanMaintenance {
   reportedById Int
   createdAt    DateTime @default(now())
   reportedBy   User     @relation(fields: [reportedById], references: [id])
+}
+
+model IncentivePoint {
+  id        Int      @id @default(autoincrement())
+  lat       Float
+  lng       Float
+  discount  Int      @default(10)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model ProhibitedArea {
+  id        Int      @id @default(autoincrement())
+  name      String
+  lat       Float
+  lng       Float
+  radius    Float    @default(200) // in meters
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 }

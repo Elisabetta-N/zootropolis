@@ -19,7 +19,16 @@ type Props = {
   onClose: () => void;
   onBookingEnded: () => void;
   onOpenSupport: () => void;
-  onPaymentRequired: (bookingId: number, breakdown: Breakdown) => void;
+  onPaymentRequired: (
+    bookingId: number,
+    breakdown: Breakdown,
+    extra?: {
+      startPos: string;
+      destination: string;
+      vehicleType: string;
+      vehicleId: number;
+    }
+  ) => void;
 };
 
 function vehicleLabel(type: string) {
@@ -182,7 +191,15 @@ export default function SidePanel({
     const res = await fetch(`/api/bookings/${id}`, { method: "PATCH" });
     const data = await res.json();
     if (res.ok) {
-      onPaymentRequired(id, data.breakdown);
+      const bk = bookings.find((b) => b.id === id);
+      onPaymentRequired(id, data.breakdown, {
+        startPos: bk?.vehicle
+          ? `${bk.vehicle.lat.toFixed(5)}, ${bk.vehicle.lng.toFixed(5)}`
+          : "Posizione di sblocco",
+        destination: bk?.destination ?? "Destinazione non specificata",
+        vehicleType: bk?.vehicle?.type ?? "bike",
+        vehicleId: bk?.vehicle?.id ?? bk?.vehicleId ?? 0,
+      });
       onBookingEnded();
       loadBookings();
       onClose();

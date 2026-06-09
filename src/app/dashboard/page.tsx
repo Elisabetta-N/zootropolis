@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import DashboardShell from "./DashboardShell";
+import { prisma } from "@/lib/prisma";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -12,5 +13,9 @@ export default async function DashboardPage() {
   if (role === "admin") redirect("/admin");
   if (role !== "user") redirect("/");
 
-  return <DashboardShell />;
+  const user = await prisma.user.findUnique({
+    where: { id: parseInt(userId.value) },
+  });
+
+  return <DashboardShell suspended={user?.suspended || false} />;
 }

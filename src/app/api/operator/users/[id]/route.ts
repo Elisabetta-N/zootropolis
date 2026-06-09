@@ -14,17 +14,12 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { hasFault, faultNote, status, blocked } = await req.json();
+  const { suspended } = await req.json();
 
-  const vehicle = await prisma.vehicle.update({
+  const user = await prisma.user.update({
     where: { id: parseInt(id) },
-    data: {
-      ...(typeof hasFault === "boolean" && { hasFault }),
-      ...(typeof faultNote === "string" && { faultNote }),
-      ...(typeof status === "string" && { status }),
-      ...(typeof blocked === "boolean" && { blocked }),
-    },
+    data: { suspended },
   });
 
-  return NextResponse.json(vehicle);
+  return NextResponse.json(user);
 }

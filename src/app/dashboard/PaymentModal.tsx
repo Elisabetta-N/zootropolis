@@ -17,6 +17,11 @@ type Props = {
   onPay: () => void;
   onCancel: () => void;
   paying: boolean;
+  startPos: string;
+  destination: string;
+  durationSeconds: number;
+  vehicleType: string;
+  vehicleId: number;
 };
 
 export default function PaymentModal({
@@ -25,18 +30,44 @@ export default function PaymentModal({
   onPay,
   onCancel,
   paying,
+  startPos,
+  destination,
+  durationSeconds,
+  vehicleType,
+  vehicleId,
 }: Props) {
-  const mins = Math.floor(breakdown.durationSeconds / 60);
-  const secs = breakdown.durationSeconds % 60;
+  const mins = Math.floor(durationSeconds / 60);
+  const secs = Math.round(durationSeconds % 60);
+  const durationText = mins > 0 ? `${mins} min ${secs} s` : `${secs} s`;
 
   return (
     <>
       <div className="panel-backdrop" />
-      <div className="payment-modal">
+      <div className="payment-modal" style={{ maxHeight: "90vh", overflowY: "auto" }}>
         <h2>💳 Pagamento corsa</h2>
         <p className="payment-sub">
-          Paghi solo ciò che hai consumato
+          Riepilogo dell'utilizzo e pagamento
         </p>
+
+        {/* Ride Summary */}
+        <div className="payment-summary-card" style={{ marginBottom: "16px", padding: "12px", background: "rgba(255,255,255,0.05)", borderRadius: "12px", textAlign: "left", fontSize: "13px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div>
+            <span style={{ color: "#888", display: "block", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Mezzo</span>
+            <strong>{vehicleType === "bike" ? "🚲 E-Bike" : "🛴 E-Scooter"} #{vehicleId}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#888", display: "block", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Durata corsa</span>
+            <strong>{durationText}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#888", display: "block", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Partenza</span>
+            <strong>📍 {startPos}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#888", display: "block", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Destinazione</span>
+            <strong>🎯 {destination}</strong>
+          </div>
+        </div>
 
         <div className="payment-breakdown">
           <div className="payment-row">
@@ -45,8 +76,7 @@ export default function PaymentModal({
           </div>
           <div className="payment-row">
             <span>
-              Tempo utilizzo ({breakdown.minutes} min · {mins}:
-              {secs.toString().padStart(2, "0")})
+              Tempo utilizzo ({breakdown.minutes} min)
             </span>
             <span>{formatEuro(breakdown.timeCost)}</span>
           </div>

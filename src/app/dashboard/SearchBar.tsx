@@ -23,6 +23,8 @@ type Props = {
   vehicles: Vehicle[];
   activeBooking: Booking | null;
   onBookVehicle: (vehicleId: number) => Promise<boolean>;
+  selectedVehicle: Vehicle | null;
+  onSelectVehicle: (vehicle: Vehicle | null) => void;
 };
 
 function vehicleLabel(type: string) {
@@ -39,13 +41,13 @@ export default function SearchBar({
   userPosition,
   vehicles,
   activeBooking,
-  onBookVehicle,
+  selectedVehicle,
+  onSelectVehicle,
 }: Props) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [bookingId, setBookingId] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +81,7 @@ export default function SearchBar({
   function handleInput(value: string) {
     setQuery(value);
     onDestinationSelect(null);
+    onSelectVehicle(null);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -117,12 +120,7 @@ export default function SearchBar({
     setSuggestions([]);
     setOpen(false);
     onDestinationSelect(null);
-  }
-
-  async function handleBook(vehicleId: number) {
-    setBookingId(vehicleId);
-    await onBookVehicle(vehicleId);
-    setBookingId(null);
+    onSelectVehicle(null);
   }
 
   return (
@@ -160,45 +158,61 @@ export default function SearchBar({
         <div className="nearby-vehicles-panel">
           <h4>Mezzi disponibili vicini</h4>
           <ul className="nearby-vehicles-list">
-            {nearbyVehicles.map((v) => (
-              <li key={v.id} className="nearby-vehicle-item">
-                <div className="nearby-vehicle-info">
-                  <span
-                    className="nearby-dot"
-                    style={{ background: batteryDotColor(v.batteryLevel) }}
-                  />
-                  <div>
-                    <strong>
-                      {vehicleEmoji(v.type)} {vehicleLabel(v.type)} #{v.id}
-                    </strong>
-                    <span className="nearby-meta">
-                      {formatMeters(v.distance)} · Carica {v.batteryLevel}%
-                    </span>
-                  </div>
-                </div>
-                <div className="nearby-battery-bar">
-                  <div
-                    className="battery-fill"
-                    style={{
-                      width: `${v.batteryLevel}%`,
-                      background: batteryDotColor(v.batteryLevel),
-                    }}
-                  />
-                </div>
-                <button
-                  type="button"
-                  className="nearby-book-btn"
-                  disabled={!!activeBooking || bookingId === v.id}
-                  onClick={() => handleBook(v.id)}
+            {nearbyVehicles.map((v) => {
+              const isSelected = selectedVehicle?.id === v.id;
+              const walkingMins = Math.round(v.distance / 1.4 / 60);
+              const walkingEtaText = walkingMins <= 1 ? "1 min" : `${walkingMins} min`;
+
+              return (
+                <li
+                  key={v.id}
+                  className={`nearby-vehicle-item ${
+                    isSelected ? "nearby-vehicle-item--selected" : ""
+                  }`}
+                  onClick={() => onSelectVehicle(v)}
+                  style={{ cursor: "pointer" }}
                 >
-                  {bookingId === v.id
-                    ? "..."
-                    : activeBooking
-                      ? "Corsa attiva"
-                      : "Prenota"}
-                </button>
-              </li>
-            ))}
+                  <div className="nearby-vehicle-info">
+                    <span
+                      className="nearby-dot"
+                      style={{ background: batteryDotColor(v.batteryLevel) }}
+                    />
+                    <div>
+                      <strong>
+                        {vehicleEmoji(v.type)} {vehicleLabel(v.type)} #{v.id}
+                      </strong>
+                      <span className="nearby-meta">
+                        Carica {v.batteryLevel}%
+                      </span>
+                      <br />
+                      <span className="walk-eta-badge">
+                        🚶 {walkingEtaText} ({formatMeters(v.distance)})
+                      </span>
+                    </div>
+                  </div>
+                  <div className="nearby-battery-bar">
+                    <div
+                      className="battery-fill"
+                      style={{
+                        width: `${v.batteryLevel}%`,
+                        background: batteryDotColor(v.batteryLevel),
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="nearby-book-btn"
+                    disabled={!!activeBooking}
+                    style={{
+                      background: isSelected ? "#4cd137" : "#ff9800",
+                      color: isSelected ? "white" : "black",
+                    }}
+                  >
+                    {isSelected ? "Selezionato" : "Seleziona"}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

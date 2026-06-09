@@ -63,6 +63,8 @@ type Props = {
   onBookVehicle: (vehicleId: number) => Promise<boolean>;
   onRouteChange: (distance: number | null) => void;
   onVehiclesReload: () => void;
+  selectedVehicle: Vehicle | null;
+  onSelectVehicle: (vehicle: Vehicle | null) => void;
 };
 
 export default function MapClient({
@@ -71,8 +73,9 @@ export default function MapClient({
   onBookingChange,
   position,
   vehicles,
-  onBookVehicle,
   onRouteChange,
+  selectedVehicle,
+  onSelectVehicle,
 }: Props) {
   const [leafletReady, setLeafletReady] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,11 +118,15 @@ export default function MapClient({
       return;
     }
 
+    const fromPos = selectedVehicle
+      ? { lat: selectedVehicle.lat, lng: selectedVehicle.lng }
+      : position;
+
     setRouteLoading(true);
     fetch("/api/route", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: position, to: destination }),
+      body: JSON.stringify({ from: fromPos, to: destination }),
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -127,7 +134,7 @@ export default function MapClient({
         onRouteChange(data?.distance ?? null);
       })
       .finally(() => setRouteLoading(false));
-  }, [position, destination, onRouteChange]);
+  }, [position, destination, selectedVehicle, onRouteChange]);
 
   if (!position || !leafletReady || !L) {
     return <p className="map-loading">📍 Localizzazione in corso...</p>;
@@ -141,7 +148,9 @@ export default function MapClient({
 
   const boundsPoints: [number, number][] = destination
     ? [
-        [position.lat, position.lng],
+        selectedVehicle
+          ? [selectedVehicle.lat, selectedVehicle.lng]
+          : [position.lat, position.lng],
         [destination.lat, destination.lng],
       ]
     : [];
@@ -151,17 +160,25 @@ export default function MapClient({
       ? calculateRideCost(route.duration, route.distance)
       : null;
 
+  // Estimate driving duration at ~30 km/h (8.33 m/s)
+  const drivingSeconds = route ? Math.round(route.distance / 8.33) : 0;
+
   return (
     <>
       {route && (
-        <div className="route-panel">
+        <div className="route-panel" style={{ bottom: "24px", left: "16px" }}>
           <h3>🗺️ Percorso</h3>
           <p>
             <strong>Distanza:</strong> {formatDistance(route.distance)}
           </p>
           <p>
-            <strong>Tempo stimato:</strong> {formatDuration(route.duration)}
+            <strong>Tempo stimato in auto:</strong> {formatDuration(drivingSeconds)}
           </p>
+          {selectedVehicle && (
+            <p style={{ fontSize: "12px", color: "#666" }}>
+              Partenza da: {selectedVehicle.type === "bike" ? "🚲 E-Bike" : "🛴 E-Scooter"} #{selectedVehicle.id}
+            </p>
+          )}
           {estimatedTripCost != null && (
             <p className="route-cost">
               <strong>Costo stimato:</strong> {formatEuro(estimatedTripCost)}
@@ -212,16 +229,22 @@ export default function MapClient({
 
         {vehicles.map((v) => {
           const dotColor = batteryDotColor(v.batteryLevel);
+          const isSelected = selectedVehicle?.id === v.id;
           return (
             <Marker
               key={v.id}
               position={[v.lat, v.lng]}
-              icon={makeDotIcon(L, dotColor)}
+              icon={makeDotIcon(L, isSelected ? "#ff9800" : dotColor)}
+              eventHandlers={{
+                click: () => {
+                  onSelectVehicle(v);
+                },
+              }}
             >
               <Popup>
                 <div className="vehicle-popup">
                   <strong>
-                    {v.type === "bike" ? "🚲 Bici" : "🛴 Monopattino"}
+                    {v.type === "bike" ? "🚲 E-Bike" : "🛴 E-Scooter"} #{v.id}
                   </strong>
 
                   <div className="battery-section">
@@ -239,10 +262,10 @@ export default function MapClient({
 
                   <button
                     className="book-btn"
-                    onClick={() => onBookVehicle(v.id)}
-                    disabled={!!activeBooking}
+                    onClick={() => onSelectVehicle(v)}
+                    style={{ background: isSelected ? "#4cd137" : "#ff9800", color: isSelected ? "white" : "black" }}
                   >
-                    {activeBooking ? "Corsa in corso" : "Prenota"}
+                    {isSelected ? "Selezionato" : "Dettagli"}
                   </button>
                 </div>
               </Popup>

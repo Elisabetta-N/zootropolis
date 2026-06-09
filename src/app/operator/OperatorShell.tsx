@@ -13,6 +13,7 @@ type Vehicle = {
   status: string;
   hasFault: boolean;
   faultNote: string | null;
+  blocked: boolean;
 };
 
 type UserMessage = {
@@ -23,16 +24,49 @@ type UserMessage = {
   user: { id: number; nome: string; email: string };
 };
 
+type MaintenanceReport = {
+  id: number;
+  title: string;
+  description: string;
+  lat: number | null;
+  lng: number | null;
+  status: string;
+  createdAt: string;
+  reportedBy: { id: number; nome: string; email: string };
+};
+
+type User = {
+  id: number;
+  nome: string;
+  email: string;
+  suspended: boolean;
+  role: string;
+};
+
+type ProhibitedArea = {
+  id: number;
+  name: string;
+  lat: number;
+  lng: number;
+  radius: number;
+  active: boolean;
+};
+
 export default function OperatorShell() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [messages, setMessages] = useState<UserMessage[]>([]);
+  const [reports, setReports] = useState<MaintenanceReport[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [prohibitedAreas, setProhibitedAreas] = useState<ProhibitedArea[]>([]);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [thread, setThread] = useState<
     { id: number; message: string; isStaff: boolean; createdAt: string; vehicleId: number | null }[]
   >([]);
   const [reply, setReply] = useState("");
-  const [tab, setTab] = useState<"map" | "messages">("map");
+  const [tab, setTab] = useState<"map" | "messages" | "users" | "areas">("map");
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const loadVehicles = useCallback(async () => {
     const res = await fetch("/api/operator/vehicles");
@@ -44,6 +78,21 @@ export default function OperatorShell() {
     if (res.ok) setMessages(await res.json());
   }, []);
 
+  const loadUsers = useCallback(async () => {
+    const res = await fetch("/api/operator/users");
+    if (res.ok) setUsers(await res.json());
+  }, []);
+
+  const loadReports = useCallback(async () => {
+    const res = await fetch("/api/operator/reports");
+    if (res.ok) setReports(await res.json());
+  }, []);
+
+  const loadProhibitedAreas = useCallback(async () => {
+    const res = await fetch("/api/operator/prohibited-areas");
+    if (res.ok) setProhibitedAreas(await res.json());
+  }, []);
+
   const loadThread = useCallback(async (uid: number) => {
     const res = await fetch(`/api/support?userId=${uid}`);
     if (res.ok) setThread(await res.json());
@@ -52,13 +101,19 @@ export default function OperatorShell() {
   useEffect(() => {
     loadVehicles();
     loadMessages();
+    loadReports();
+    loadUsers();
+    loadProhibitedAreas();
     const id = setInterval(() => {
       loadMessages();
       loadVehicles();
+      loadReports();
+      loadUsers();
+      loadProhibitedAreas();
       if (selectedUser) loadThread(selectedUser);
     }, 15000);
     return () => clearInterval(id);
-  }, [loadVehicles, loadMessages, loadThread, selectedUser]);
+  }, [loadVehicles, loadMessages, loadReports, loadUsers, loadProhibitedAreas, loadThread, selectedUser]);
 
   useEffect(() => {
     if (selectedUser) loadThread(selectedUser);
@@ -71,6 +126,24 @@ export default function OperatorShell() {
       body: JSON.stringify({ hasFault, faultNote: note ?? null }),
     });
     loadVehicles();
+  }
+
+  async function blockVehicle(id: number, blocked: boolean) {
+    await fetch(`/api/operator/vehicles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blocked }),
+    });
+    loadVehicles();
+  }
+
+  async function blockUser(id: number, suspended: boolean) {
+    await fetch(`/api/operator/users/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ suspended }),
+    });
+    loadUsers();
   }
 
   async function sendReply() {
@@ -88,6 +161,42 @@ export default function OperatorShell() {
     if (selectedUser) loadThread(selectedUser);
   }
 
+  async function dismissReport(id: number) {
+    await fetch("/api/operator/reports", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: "resolved" }),
+    });
+    loadReports();
+  }
+
+  async function setIncentivePoint(lat: number, lng: number) {
+    await fetch("/api/operator/incentive-points", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat, lng, discount: 10 }),
+    });
+    alert(`Punto incentivo impostato: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+  }
+
+  async function addProhibitedArea(name: string, lat: number, lng: number, radius: number) {
+    await fetch("/api/operator/prohibited-areas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, lat, lng, radius }),
+    });
+    loadProhibitedAreas();
+  }
+
+  async function removeProhibitedArea(id: number) {
+    await fetch("/api/operator/prohibited-areas", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    loadProhibitedAreas();
+  }
+
   async function logout() {
     await fetch("/api/logout", { method: "POST" });
     router.push("/");
@@ -95,6 +204,21 @@ export default function OperatorShell() {
 
   const faults = vehicles.filter((v) => v.hasFault);
   const userThreads = [...new Map(messages.map((m) => [m.user.id, m.user])).values()];
+
+  const availableCount = vehicles.filter((v) => v.status === "available").length;
+  const bookedCount = vehicles.filter((v) => v.status === "booked").length;
+  const lowBatteryCount = vehicles.filter((v) => v.batteryLevel < 20).length;
+  const criticalBatteryCount = vehicles.filter((v) => v.batteryLevel < 10).length;
+  const blockedCount = vehicles.filter((v) => v.blocked).length;
+
+  // Support KPIs
+  const totalTickets = messages.length;
+  const uniqueUsersWithTickets = userThreads.length;
+  const recentTickets = messages.filter((m) => {
+    const ticketDate = new Date(m.createdAt);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    return ticketDate > oneDayAgo;
+  }).length;
 
   return (
     <div className="dashboard">
@@ -115,6 +239,66 @@ export default function OperatorShell() {
           >
             Messaggi ({messages.length})
           </button>
+          <button
+            type="button"
+            className={`dash-nav-btn ${tab === "users" ? "dash-nav-btn--active" : ""}`}
+            onClick={() => setTab("users")}
+          >
+            Utenti
+          </button>
+          <button
+            type="button"
+            className={`dash-nav-btn ${tab === "areas" ? "dash-nav-btn--active" : ""}`}
+            onClick={() => setTab("areas")}
+          >
+            Aree Proibite
+          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              className="dash-nav-btn"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              🔔 {reports.length > 0 && <span className="notification-badge">{reports.length}</span>}
+            </button>
+            {showNotifications && (
+              <div className="notifications-dropdown">
+                <h4>Notifiche Sistema</h4>
+                {reports.length === 0 ? (
+                  <p className="empty-msg">Nessuna notifica</p>
+                ) : (
+                  reports.map((report) => (
+                    <div key={report.id} className="notification-item">
+                      <div className="notification-header">
+                        <strong>{report.title}</strong>
+                        <span className="notification-time">
+                          {new Date(report.createdAt).toLocaleString("it-IT")}
+                        </span>
+                      </div>
+                      <p className="notification-preview">{report.description}</p>
+                      <div className="notification-footer">
+                        <span className="notification-user">Da: {report.reportedBy.nome}</span>
+                        <button
+                          type="button"
+                          className="notification-dismiss"
+                          onClick={() => dismissReport(report.id)}
+                        >
+                          Archivia
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            className="dash-nav-btn"
+            onClick={() => setShowSidebar(!showSidebar)}
+          >
+            {showSidebar ? "📊" : "📊"}
+          </button>
           <button type="button" className="dash-nav-btn" onClick={logout}>
             Esci
           </button>
@@ -122,79 +306,226 @@ export default function OperatorShell() {
       </nav>
 
       {faults.length > 0 && (
-        <div className="operator-alert">
+        <div className="operator-alert operator-alert--fault">
           ⚠️ {faults.length} mezzo/i con guasto segnalato
         </div>
       )}
+      {criticalBatteryCount > 0 && (
+        <div className="operator-alert operator-alert--critical">
+          🔋 {criticalBatteryCount} mezzo/i con batteria critica (&lt;10%)
+        </div>
+      )}
+      {lowBatteryCount > 0 && criticalBatteryCount === 0 && (
+        <div className="operator-alert operator-alert--warning">
+          🔋 {lowBatteryCount} mezzo/i con batteria bassa (&lt;20%)
+        </div>
+      )}
+      {blockedCount > 0 && (
+        <div className="operator-alert operator-alert--blocked">
+          🔒 {blockedCount} mezzo/i bloccati
+        </div>
+      )}
 
-      <main className="content">
-        {tab === "map" ? (
-          <OperatorMap vehicles={vehicles} onMarkFault={markFault} />
-        ) : (
-          <div className="operator-messages-layout">
-            <aside className="operator-inbox">
-              <h3>Messaggi utenti</h3>
-              {userThreads.map((u) => {
-                const count = messages.filter((m) => m.user.id === u.id).length;
-                return (
-                  <button
-                    key={u.id}
-                    type="button"
-                    className={`inbox-item ${selectedUser === u.id ? "inbox-item--active" : ""}`}
-                    onClick={() => setSelectedUser(u.id)}
-                  >
-                    <strong>{u.nome}</strong>
-                    <span>{u.email}</span>
-                    <span className="inbox-count">{count} msg</span>
-                  </button>
-                );
-              })}
-              {userThreads.length === 0 && (
-                <p className="empty-msg">Nessun messaggio</p>
-              )}
-            </aside>
-
-            <div className="operator-thread">
-              {selectedUser ? (
-                <>
-                  <div className="thread-messages">
-                    {thread.map((m) => (
-                      <div
-                        key={m.id}
-                        className={`thread-msg ${m.isStaff ? "thread-msg--staff" : ""}`}
-                      >
-                        <div className="thread-msg-header">
-                          <strong>{m.isStaff ? "Operatore" : "Utente"}</strong>
-                          <span>
-                            {new Date(m.createdAt).toLocaleString("it-IT")}
-                          </span>
-                        </div>
-                        <p>{m.message}</p>
-                        {m.vehicleId && (
-                          <span className="thread-vehicle">
-                            Mezzo #{m.vehicleId}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+      <main className="content" style={{ display: "flex" }}>
+        {showSidebar && (
+          <aside className="operator-sidebar">
+            <h3>📊 Stato Flotta</h3>
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-label">Disponibili</span>
+              <span className="sidebar-stat-value sidebar-stat-value--available">
+                {availableCount}
+              </span>
+            </div>
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-label">Prenotati</span>
+              <span className="sidebar-stat-value sidebar-stat-value--booked">
+                {bookedCount}
+              </span>
+            </div>
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-label">Guasti</span>
+              <span className="sidebar-stat-value sidebar-stat-value--fault">
+                {faults.length}
+              </span>
+            </div>
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-label">Bassa batteria</span>
+              <span className="sidebar-stat-value sidebar-stat-value--low-battery">
+                {lowBatteryCount}
+              </span>
+            </div>
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-label">Totale</span>
+              <span className="sidebar-stat-value">{vehicles.length}</span>
+            </div>
+          </aside>
+        )}
+        <div style={{ flex: 1, height: "100%" }}>
+          {tab === "map" ? (
+            <OperatorMap vehicles={vehicles} onMarkFault={markFault} onBlockVehicle={blockVehicle} onSetIncentivePoint={setIncentivePoint} />
+          ) : tab === "messages" ? (
+            <div className="operator-messages-layout">
+              <aside className="operator-inbox">
+                <div className="support-kpis">
+                  <div className="kpi-card">
+                    <span className="kpi-label">Totale Ticket</span>
+                    <span className="kpi-value">{totalTickets}</span>
                   </div>
-                  <div className="thread-reply">
-                    <input
-                      placeholder="Rispondi all'utente..."
-                      value={reply}
-                      onChange={(e) => setReply(e.target.value)}
-                    />
-                    <button type="button" onClick={sendReply}>
-                      Invia
+                  <div className="kpi-card">
+                    <span className="kpi-label">Utenti Unici</span>
+                    <span className="kpi-value">{uniqueUsersWithTickets}</span>
+                  </div>
+                  <div className="kpi-card">
+                    <span className="kpi-label">Ultimi 24h</span>
+                    <span className="kpi-value">{recentTickets}</span>
+                  </div>
+                </div>
+                <h3>Messaggi utenti</h3>
+                {userThreads.map((u) => {
+                  const count = messages.filter((m) => m.user.id === u.id).length;
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      className={`inbox-item ${selectedUser === u.id ? "inbox-item--active" : ""}`}
+                      onClick={() => setSelectedUser(u.id)}
+                    >
+                      <strong>{u.nome}</strong>
+                      <span>{u.email}</span>
+                      <span className="inbox-count">{count} msg</span>
+                    </button>
+                  );
+                })}
+                {userThreads.length === 0 && (
+                  <p className="empty-msg">Nessun messaggio</p>
+                )}
+              </aside>
+
+              <div className="operator-thread">
+                {selectedUser ? (
+                  <>
+                    <div className="thread-messages">
+                      {thread.map((m) => (
+                        <div
+                          key={m.id}
+                          className={`thread-msg ${m.isStaff ? "thread-msg--staff" : ""}`}
+                        >
+                          <div className="thread-msg-header">
+                            <strong>{m.isStaff ? "Operatore" : "Utente"}</strong>
+                            <span>
+                              {new Date(m.createdAt).toLocaleString("it-IT")}
+                            </span>
+                          </div>
+                          <p>{m.message}</p>
+                          {m.vehicleId && (
+                            <span className="thread-vehicle">
+                              Mezzo #{m.vehicleId}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="thread-reply">
+                      <input
+                        placeholder="Rispondi all'utente..."
+                        value={reply}
+                        onChange={(e) => setReply(e.target.value)}
+                      />
+                      <button type="button" onClick={sendReply}>
+                        Invia
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="empty-msg">Seleziona un utente</p>
+                )}
+              </div>
+            </div>
+          ) : tab === "users" ? (
+            <div className="operator-users-layout">
+              <div className="operator-users-list">
+                <h3>Gestione Utenti</h3>
+                {users.filter((u) => u.role === "user").map((u) => (
+                  <div key={u.id} className="user-card">
+                    <div className="user-card-info">
+                      <strong>{u.nome}</strong>
+                      <span>{u.email}</span>
+                      {u.suspended && (
+                        <span className="user-suspended-badge">Sospeso</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className={`user-block-btn ${u.suspended ? "user-block-btn--unblock" : ""}`}
+                      onClick={() => blockUser(u.id, !u.suspended)}
+                    >
+                      {u.suspended ? "Sblocca" : "Blocca"}
                     </button>
                   </div>
-                </>
-              ) : (
-                <p className="empty-msg">Seleziona un utente</p>
-              )}
+                ))}
+                {users.filter((u) => u.role === "user").length === 0 && (
+                  <p className="empty-msg">Nessun utente</p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="operator-users-layout">
+              <div className="operator-users-list">
+                <h3>Aree Proibite</h3>
+                {prohibitedAreas.map((area) => (
+                  <div key={area.id} className="user-card">
+                    <div className="user-card-info">
+                      <strong>{area.name}</strong>
+                      <span>Lat: {area.lat.toFixed(4)}, Lng: {area.lng.toFixed(4)}</span>
+                      <span>Raggio: {area.radius}m</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="user-block-btn"
+                      onClick={() => removeProhibitedArea(area.id)}
+                    >
+                      Rimuovi
+                    </button>
+                  </div>
+                ))}
+                {prohibitedAreas.length === 0 && (
+                  <p className="empty-msg">Nessuna area proibita</p>
+                )}
+                <div className="add-area-form">
+                  <h4>Aggiungi Area Proibita</h4>
+                  <input
+                    type="text"
+                    placeholder="Nome area"
+                    id="area-name"
+                    className="area-input"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Raggio (metri)"
+                    id="area-radius"
+                    defaultValue="200"
+                    className="area-input"
+                  />
+                  <button
+                    type="button"
+                    className="user-block-btn"
+                    onClick={() => {
+                      const name = (document.getElementById("area-name") as HTMLInputElement)?.value;
+                      const radius = parseInt((document.getElementById("area-radius") as HTMLInputElement)?.value || "200");
+                      if (name) {
+                        addProhibitedArea(name, 45.4642, 9.1900, radius);
+                        (document.getElementById("area-name") as HTMLInputElement).value = "";
+                      }
+                    }}
+                  >
+                    Aggiungi Area
+                  </button>
+                  <p className="area-note">Nota: Le coordinate sono predefinite (Milano centro)</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
