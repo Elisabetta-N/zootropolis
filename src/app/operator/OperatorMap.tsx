@@ -15,6 +15,7 @@ type Vehicle = {
   hasFault: boolean;
   faultNote: string | null;
   blocked: boolean;
+  stolen: boolean;
 };
 
 function makeDot(L: any, color: string, label?: string) {
@@ -48,11 +49,13 @@ export default function OperatorMap({
   onMarkFault,
   onBlockVehicle,
   onSetIncentivePoint,
+  onReportStolen,
 }: {
   vehicles: Vehicle[];
   onMarkFault: (id: number, hasFault: boolean, note?: string) => void;
   onBlockVehicle?: (id: number, blocked: boolean) => void;
   onSetIncentivePoint?: (lat: number, lng: number) => void;
+  onReportStolen?: (id: number, stolen: boolean) => void;
 }) {
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(
     null
@@ -64,12 +67,8 @@ export default function OperatorMap({
 
   useEffect(() => {
     import("leaflet").then((mod) => setL(mod.default));
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setPosition({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-      });
-    });
+    // Hard-coded: Dipartimento di Informatica — Università di Bari (Via Orabona 4)
+    setPosition({ lat: 41.1087, lng: 16.8784 });
   }, []);
 
   if (!position || !L) {
@@ -122,9 +121,10 @@ export default function OperatorMap({
         />
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-        {vehicles.map((v) => {
+          {vehicles.map((v) => {
           let color = batteryDotColor(v.batteryLevel);
-          if (v.blocked) color = "#9b59b6";
+          if (v.stolen) color = "#c0392b";
+          else if (v.blocked) color = "#9b59b6";
           else if (v.hasFault) color = "#e84118";
           else if (v.status === "booked") color = "#3498db";
 
@@ -132,7 +132,7 @@ export default function OperatorMap({
             <Marker
               key={v.id}
               position={[v.lat, v.lng]}
-              icon={makeDot(L, color, v.blocked ? "🔒" : v.hasFault ? "!" : undefined)}
+              icon={makeDot(L, color, v.stolen ? "🚨" : v.blocked ? "🔒" : v.hasFault ? "!" : undefined)}
             >
               <Popup>
                 <div className="vehicle-popup">
@@ -141,7 +141,12 @@ export default function OperatorMap({
                   </strong>
                   <p>Stato: {v.status}</p>
                   <p>Carica: {v.batteryLevel}%</p>
-                  {v.blocked && (
+                  {v.stolen && (
+                    <p className="fault-text" style={{ color: "#c0392b" }}>
+                      🚨 Veicolo segnalato come RUBATO
+                    </p>
+                  )}
+                  {v.blocked && !v.stolen && (
                     <p className="fault-text" style={{ color: "#9b59b6" }}>
                       🔒 Veicolo bloccato
                     </p>
@@ -170,6 +175,15 @@ export default function OperatorMap({
                       onClick={() => onBlockVehicle(v.id, !v.blocked)}
                     >
                       {v.blocked ? "Sblocca veicolo" : "Blocca veicolo"}
+                    </button>
+                  )}
+                  {onReportStolen && (
+                    <button
+                      className="book-btn"
+                      style={{ marginTop: "8px", background: v.stolen ? "#4cd137" : "#c0392b", color: "white" }}
+                      onClick={() => onReportStolen(v.id, !v.stolen)}
+                    >
+                      {v.stolen ? "✅ Ritrovato" : "🚨 Segna rubato"}
                     </button>
                   )}
                 </div>

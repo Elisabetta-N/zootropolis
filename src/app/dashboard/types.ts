@@ -29,6 +29,8 @@ export type Booking = {
   vehicleId: number;
   status: string;
   destination: string | null;
+  destLat: number | null;
+  destLng: number | null;
   distance: number | null;
   cost: number | null;
   durationSeconds: number | null;

@@ -14,6 +14,7 @@ type Vehicle = {
   hasFault: boolean;
   faultNote: string | null;
   blocked: boolean;
+  stolen: boolean;
 };
 
 type UserMessage = {
@@ -32,6 +33,7 @@ type MaintenanceReport = {
   lng: number | null;
   status: string;
   createdAt: string;
+  vehicleId: number | null;
   reportedBy: { id: number; nome: string; email: string };
 };
 
@@ -64,7 +66,7 @@ export default function OperatorShell() {
     { id: number; message: string; isStaff: boolean; createdAt: string; vehicleId: number | null }[]
   >([]);
   const [reply, setReply] = useState("");
-  const [tab, setTab] = useState<"map" | "messages" | "users" | "areas">("map");
+  const [tab, setTab] = useState<"map" | "messages" | "users" | "areas" | "stolen">("map");
   const [showSidebar, setShowSidebar] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -146,8 +148,16 @@ export default function OperatorShell() {
     loadUsers();
   }
 
+  async function reportStolenVehicle(id: number, stolen: boolean) {
+    await fetch(`/api/operator/vehicles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stolen, blocked: stolen }),
+    });
+    loadVehicles();
+  }
+
   async function sendReply() {
-    if (!selectedUser || !reply.trim()) return;
     await fetch("/api/support", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -203,6 +213,7 @@ export default function OperatorShell() {
   }
 
   const faults = vehicles.filter((v) => v.hasFault);
+  const stolenVehicles = vehicles.filter((v) => v.stolen);
   const userThreads = [...new Map(messages.map((m) => [m.user.id, m.user])).values()];
 
   const availableCount = vehicles.filter((v) => v.status === "available").length;
@@ -253,41 +264,76 @@ export default function OperatorShell() {
           >
             Aree Proibite
           </button>
+          <button
+            type="button"
+            className={`dash-nav-btn ${tab === "stolen" ? "dash-nav-btn--active" : ""}`}
+            onClick={() => setTab("stolen")}
+          >
+            🚨 Furti {stolenVehicles.length > 0 && <span className="notification-badge">{stolenVehicles.length}</span>}
+          </button>
           <div style={{ position: "relative" }}>
             <button
               type="button"
               className="dash-nav-btn"
               onClick={() => setShowNotifications(!showNotifications)}
             >
-              🔔 {reports.length > 0 && <span className="notification-badge">{reports.length}</span>}
+              🔔 {(reports.length + messages.filter(m => m.vehicleId).length) > 0 && <span className="notification-badge">{reports.length + messages.filter(m => m.vehicleId).length}</span>}
             </button>
             {showNotifications && (
               <div className="notifications-dropdown">
                 <h4>Notifiche Sistema</h4>
-                {reports.length === 0 ? (
+                {reports.length === 0 && messages.filter(m => m.vehicleId).length === 0 ? (
                   <p className="empty-msg">Nessuna notifica</p>
                 ) : (
-                  reports.map((report) => (
-                    <div key={report.id} className="notification-item">
-                      <div className="notification-header">
-                        <strong>{report.title}</strong>
-                        <span className="notification-time">
-                          {new Date(report.createdAt).toLocaleString("it-IT")}
-                        </span>
+                  <>
+                    {reports.map((report) => (
+                      <div key={`r-${report.id}`} className="notification-item">
+                        <div className="notification-header">
+                          <strong>🔧 {report.title}</strong>
+                          <span className="notification-time">
+                            {new Date(report.createdAt).toLocaleString("it-IT")}
+                          </span>
+                        </div>
+                        <p className="notification-preview">{report.description}</p>
+                        <div className="notification-footer">
+                          <span className="notification-user">
+                            Da: {report.reportedBy.nome}
+                            {report.vehicleId && (
+                              <span className="notification-vehicle">
+                                {" "}· Mezzo #{report.vehicleId}
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            className="notification-dismiss"
+                            onClick={() => dismissReport(report.id)}
+                          >
+                            Archivia
+                          </button>
+                        </div>
                       </div>
-                      <p className="notification-preview">{report.description}</p>
-                      <div className="notification-footer">
-                        <span className="notification-user">Da: {report.reportedBy.nome}</span>
-                        <button
-                          type="button"
-                          className="notification-dismiss"
-                          onClick={() => dismissReport(report.id)}
-                        >
-                          Archivia
-                        </button>
+                    ))}
+                    {messages.filter(m => m.vehicleId).slice(0, 5).map((msg) => (
+                      <div key={`m-${msg.id}`} className="notification-item" style={{ borderLeft: "3px solid #3498db" }}>
+                        <div className="notification-header">
+                          <strong>💬 Segnalazione mezzo</strong>
+                          <span className="notification-time">
+                            {new Date(msg.createdAt).toLocaleString("it-IT")}
+                          </span>
+                        </div>
+                        <p className="notification-preview">{msg.message}</p>
+                        <div className="notification-footer">
+                          <span className="notification-user">
+                            Da: {msg.user.nome}
+                            <span className="notification-vehicle">
+                              {" "}· Mezzo #{msg.vehicleId}
+                            </span>
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </>
                 )}
               </div>
             )}
@@ -325,6 +371,11 @@ export default function OperatorShell() {
           🔒 {blockedCount} mezzo/i bloccati
         </div>
       )}
+      {stolenVehicles.length > 0 && (
+        <div className="operator-alert" style={{ background: "#c0392b" }}>
+          🚨 {stolenVehicles.length} veicolo/i segnalato/i come rubato/i
+        </div>
+      )}
 
       <main className="content" style={{ display: "flex" }}>
         {showSidebar && (
@@ -355,6 +406,18 @@ export default function OperatorShell() {
               </span>
             </div>
             <div className="sidebar-stat">
+              <span className="sidebar-stat-label">Bloccati</span>
+              <span className="sidebar-stat-value" style={{ color: "#9b59b6" }}>
+                {blockedCount}
+              </span>
+            </div>
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-label">Rubati</span>
+              <span className="sidebar-stat-value" style={{ color: "#c0392b" }}>
+                {stolenVehicles.length}
+              </span>
+            </div>
+            <div className="sidebar-stat">
               <span className="sidebar-stat-label">Totale</span>
               <span className="sidebar-stat-value">{vehicles.length}</span>
             </div>
@@ -362,7 +425,7 @@ export default function OperatorShell() {
         )}
         <div style={{ flex: 1, height: "100%" }}>
           {tab === "map" ? (
-            <OperatorMap vehicles={vehicles} onMarkFault={markFault} onBlockVehicle={blockVehicle} onSetIncentivePoint={setIncentivePoint} />
+            <OperatorMap vehicles={vehicles} onMarkFault={markFault} onBlockVehicle={blockVehicle} onSetIncentivePoint={setIncentivePoint} onReportStolen={reportStolenVehicle} />
           ) : tab === "messages" ? (
             <div className="operator-messages-layout">
               <aside className="operator-inbox">
@@ -468,6 +531,61 @@ export default function OperatorShell() {
                 )}
               </div>
             </div>
+          ) : tab === "stolen" ? (
+            <div className="operator-users-layout">
+              <div className="operator-users-list">
+                <h3>🚨 Gestione Furti</h3>
+                <p className="area-note" style={{ marginBottom: "16px" }}>
+                  I veicoli segnalati come rubati vengono automaticamente bloccati. Rimuovi la segnalazione solo quando il veicolo è stato ritrovato.
+                </p>
+                <h4 style={{ color: "#e84118", marginBottom: "12px" }}>
+                  Veicoli rubati ({stolenVehicles.length})
+                </h4>
+                {stolenVehicles.map((v) => (
+                  <div key={v.id} className="user-card" style={{ borderLeft: "4px solid #c0392b" }}>
+                    <div className="user-card-info">
+                      <strong style={{ color: "#e84118" }}>
+                        {v.type === "bike" ? "🚲" : "🛴"} #{v.id} — RUBATO
+                      </strong>
+                      <span>Pos: {v.lat.toFixed(4)}, {v.lng.toFixed(4)}</span>
+                      <span>Batteria: {v.batteryLevel}%</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="user-block-btn user-block-btn--unblock"
+                      onClick={() => reportStolenVehicle(v.id, false)}
+                    >
+                      Ritrovato
+                    </button>
+                  </div>
+                ))}
+                {stolenVehicles.length === 0 && (
+                  <p className="empty-msg">Nessun veicolo rubato segnalato 🎉</p>
+                )}
+                <h4 style={{ marginTop: "24px", marginBottom: "12px" }}>
+                  Segna veicolo come rubato
+                </h4>
+                {vehicles.filter((v) => !v.stolen).map((v) => (
+                  <div key={v.id} className="user-card">
+                    <div className="user-card-info">
+                      <strong>
+                        {v.type === "bike" ? "🚲" : "🛴"} #{v.id}
+                      </strong>
+                      <span>Stato: {v.status}</span>
+                      <span>Batteria: {v.batteryLevel}%</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="user-block-btn"
+                      style={{ background: "#c0392b", color: "white", borderColor: "#c0392b" }}
+                      onClick={() => reportStolenVehicle(v.id, true)}
+                    >
+                      Segna rubato
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : (
             <div className="operator-users-layout">
               <div className="operator-users-list">
@@ -513,14 +631,14 @@ export default function OperatorShell() {
                       const name = (document.getElementById("area-name") as HTMLInputElement)?.value;
                       const radius = parseInt((document.getElementById("area-radius") as HTMLInputElement)?.value || "200");
                       if (name) {
-                        addProhibitedArea(name, 45.4642, 9.1900, radius);
+                        addProhibitedArea(name, 41.1087, 16.8784, radius);
                         (document.getElementById("area-name") as HTMLInputElement).value = "";
                       }
                     }}
                   >
                     Aggiungi Area
                   </button>
-                  <p className="area-note">Nota: Le coordinate sono predefinite (Milano centro)</p>
+                  <p className="area-note">Nota: Le coordinate sono dell'Università di Bari</p>
                 </div>
               </div>
             </div>

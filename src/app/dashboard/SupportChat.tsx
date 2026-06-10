@@ -70,11 +70,11 @@ export default function SupportChat({
     });
 
     if (res.ok) {
-      const { userMsg, staffMsg } = await res.json();
+      const data = await res.json();
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== optimistic.id),
-        userMsg,
-        staffMsg,
+        data.userMsg,
+        ...(data.staffMsg ? [data.staffMsg] : []),
       ]);
     } else {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));

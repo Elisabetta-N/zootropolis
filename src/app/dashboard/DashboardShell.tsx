@@ -65,6 +65,16 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
     const active = bookings.find((b) => b.status === "active");
     const awaiting = bookings.find((b) => b.status === "awaiting_payment");
     setActiveBooking(active ?? null);
+
+    // Restore destination from active booking so map + route remain visible
+    if (active && active.destination && active.destLat && active.destLng) {
+      setDestination({
+        label: active.destination,
+        lat: active.destLat,
+        lng: active.destLng,
+      });
+    }
+
     if (awaiting && awaiting.cost != null) {
       setPendingPayment({
         bookingId: awaiting.id,
@@ -86,13 +96,12 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
 
   useEffect(() => {
     loadProfile();
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      setPosition({ lat, lng });
-      loadVehicles(lat, lng);
-      loadActiveBooking();
-    });
+    // Dipartimento di Informatica - Università di Bari (Via Orabona 4)
+    const lat = 41.1087;
+    const lng = 16.8784;
+    setPosition({ lat, lng });
+    loadVehicles(lat, lng);
+    loadActiveBooking();
   }, [loadVehicles, loadActiveBooking, loadProfile]);
 
   const handleBookingChange = useCallback((booking: Booking | null) => {
@@ -111,6 +120,8 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
       body: JSON.stringify({
         vehicleId,
         destination: destination?.label ?? null,
+        destLat: destination?.lat ?? null,
+        destLng: destination?.lng ?? null,
         distance: routeDistance,
       }),
     });
@@ -231,7 +242,7 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
           />
         </div>
 
-        {destination ? (
+        {(destination || activeBooking) ? (
           <MapClient
             key={refreshKey}
             destination={destination}

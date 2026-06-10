@@ -160,8 +160,9 @@ export default function MapClient({
       ? calculateRideCost(route.duration, route.distance)
       : null;
 
-  // Estimate driving duration at ~30 km/h (8.33 m/s)
-  const drivingSeconds = route ? Math.round(route.distance / 8.33) : 0;
+  // ETA riding at ~15 km/h (4.17 m/s) — bike/scooter realistic speed
+  const rideSpeedMs = selectedVehicle?.type === "bike" ? 4.17 : 3.89; // bike ~15 km/h, scooter ~14 km/h
+  const rideSeconds = route ? Math.round(route.distance / rideSpeedMs) : 0;
 
   return (
     <>
@@ -172,7 +173,17 @@ export default function MapClient({
             <strong>Distanza:</strong> {formatDistance(route.distance)}
           </p>
           <p>
-            <strong>Tempo stimato in auto:</strong> {formatDuration(drivingSeconds)}
+            <strong>ETA a destinazione:</strong>{" "}
+            {selectedVehicle ? (
+              <span>
+                {formatDuration(rideSeconds)}{" "}
+                <span style={{ fontSize: "11px", color: "#888" }}>
+                  ({selectedVehicle.type === "bike" ? "🚲 ~15 km/h" : "🛴 ~14 km/h"})
+                </span>
+              </span>
+            ) : (
+              formatDuration(rideSeconds)
+            )}
           </p>
           {selectedVehicle && (
             <p style={{ fontSize: "12px", color: "#666" }}>

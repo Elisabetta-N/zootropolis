@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: "Non autenticato" }, { status: 401 });
   }
 
-  const { vehicleId, destination, distance } = await req.json();
+  const { vehicleId, destination, distance, destLat, destLng } = await req.json();
 
   if (!vehicleId) {
     return NextResponse.json(
@@ -46,6 +46,8 @@ export async function POST(req: Request) {
         vehicleId,
         status: "active",
         destination: destination ?? null,
+        destLat: destLat ?? null,
+        destLng: destLng ?? null,
         distance: distance ?? null,
       },
       include: { vehicle: true },

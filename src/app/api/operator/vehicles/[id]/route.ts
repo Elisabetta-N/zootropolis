@@ -14,7 +14,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { hasFault, faultNote, status, blocked } = await req.json();
+  const { hasFault, faultNote, status, blocked, stolen } = await req.json();
 
   const vehicle = await prisma.vehicle.update({
     where: { id: parseInt(id) },
@@ -23,6 +23,7 @@ export async function PATCH(
       ...(typeof faultNote === "string" && { faultNote }),
       ...(typeof status === "string" && { status }),
       ...(typeof blocked === "boolean" && { blocked }),
+      ...(typeof stolen === "boolean" && { stolen, stolenAt: stolen ? new Date() : null }),
     },
   });
 
