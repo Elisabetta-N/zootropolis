@@ -34,7 +34,7 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
     vehicleType: string;
     vehicleId: number;
   } | null>(null);
-  const [showDiscountPopup, setShowDiscountPopup] = useState(false);
+  const [showDiscountPopup, setShowDiscountPopup] = useState(false); // kept for endRide incentive check
   const [discountAmount, setDiscountAmount] = useState(10);
   const [paymentMethod, setPaymentMethod] = useState("Visa •••• 4242");
   const [rideEndedMsg, setRideEndedMsg] = useState<string | null>(null);
@@ -42,7 +42,9 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [position, setPosition] = useState<Pos | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [bookingDuration, setBookingDuration] = useState<number>(30); // minuti
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
+  const [discountStep, setDiscountStep] = useState<"ask" | "granted" | "denied" | null>(null);
   const [bookingMsg, setBookingMsg] = useState<string | null>(null);
 
   const loadVehicles = useCallback(async (lat: number, lng: number) => {
@@ -156,20 +158,19 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
       const vehicleType = activeBooking.vehicle?.type ?? "bike";
       const vehicleId = activeBooking.vehicle?.id ?? activeBooking.vehicleId;
 
-      // Check if near incentive point
+      // Check if near incentive point — save discount amount for later popup
       const incentiveRes = await fetch("/api/incentive-points");
       if (incentiveRes.ok) {
         const incentivePoints = await incentiveRes.json();
-        const currentLat = position?.lat || 45.4642;
-        const currentLng = position?.lng || 9.1900;
+        const currentLat = position?.lat || 41.1087;
+        const currentLng = position?.lng || 16.8784;
 
         for (const point of incentivePoints) {
           const distance = Math.sqrt(
             Math.pow(currentLat - point.lat, 2) + Math.pow(currentLng - point.lng, 2)
-          ) * 111000; // Convert to meters
-          if (distance < 200) { // Within 200 meters
+          ) * 111000;
+          if (distance < 200) {
             setDiscountAmount(point.discount);
-            setShowDiscountPopup(true);
             break;
           }
         }
@@ -205,8 +206,8 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
       if (position) loadVehicles(position.lat, position.lng);
       setTimeout(() => setRideEndedMsg(null), 5000);
       
-      // Trigger the 10% discount popup on successful payment
-      setShowDiscountPopup(true);
+      // Mostra popup con domanda sul parcheggio incentivato
+      setDiscountStep("ask");
     }
     setPaying(false);
   }
@@ -332,6 +333,30 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
                 </div>
               </div>
             </div>
+
+            {/* Selettore durata */}
+            <div className="duration-selector">
+              <div className="duration-label">⏱️ Durata stimata</div>
+              <div className="duration-options">
+                {[15, 30, 45, 60, 90, 120].map((min) => (
+                  <button
+                    key={min}
+                    type="button"
+                    className={`duration-option ${bookingDuration === min ? "duration-option--active" : ""}`}
+                    onClick={() => setBookingDuration(min)}
+                  >
+                    {min >= 60 ? `${min / 60}h` : `${min}m`}
+                  </button>
+                ))}
+              </div>
+              <div className="duration-cost-preview">
+                Costo stimato: <strong>€{(1 + bookingDuration * 0.25).toFixed(2)}</strong>
+                <span style={{ fontSize: "10px", color: "#888", marginLeft: "6px" }}>
+                  (€1 sblocco + €0.25/min)
+                </span>
+              </div>
+            </div>
+
             <button
               type="button"
               className="panel-btn"
@@ -393,25 +418,76 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
         />
       )}
 
-      {/* Post-ride 10% Discount Popup */}
-      {showDiscountPopup && (
+      {/* Post-ride incentive popup — step 1: domanda, step 2: granted, step 3: denied */}
+      {discountStep === "ask" && (
+        <div className="discount-popup-backdrop">
+          <div className="discount-popup">
+            <div className="discount-popup-icon">🅿️</div>
+            <div className="discount-popup-badge">Zona Incentivata</div>
+            <h2>Hai parcheggiato in una zona incentivata?</h2>
+            <p>
+              Se hai lasciato il mezzo in una delle aree convenzionate, puoi ricevere uno sconto del <strong style={{ color: "#ff9800" }}>10%</strong> sulla corsa appena completata.
+            </p>
+            <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+              <button
+                type="button"
+                className="discount-popup-btn"
+                style={{ background: "#4cd137", color: "black" }}
+                onClick={() => setDiscountStep("granted")}
+              >
+                ✅ Sì, ho parcheggiato lì
+              </button>
+              <button
+                type="button"
+                className="discount-popup-btn"
+                style={{ background: "#2a2a2a", color: "#ccc", border: "1px solid #444" }}
+                onClick={() => setDiscountStep("denied")}
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {discountStep === "granted" && (
         <div className="discount-popup-backdrop">
           <div className="discount-popup">
             <div className="discount-popup-icon">🎁</div>
-            <div className="discount-popup-badge">Bonus Parcheggio</div>
-            <h2>Sconto del 10%</h2>
+            <div className="discount-popup-badge">Bonus Applicato!</div>
+            <h2>Sconto del {discountAmount}% ottenuto!</h2>
             <p>
-              Parcheggia il mezzo in questo spot consigliato per ricevere uno sconto del 10% sulla tua prossima corsa!
+              Ottimo! Il tuo sconto è stato registrato e verrà applicato automaticamente alla tua prossima corsa.
             </p>
             <div className="discount-popup-spot">
-              📍 Area Stazione Centrale (Piazza Duca d'Aosta)
+              🏅 Grazie per aver usato una zona incentivata!
             </div>
             <button
               type="button"
               className="discount-popup-btn"
-              onClick={() => setShowDiscountPopup(false)}
+              onClick={() => setDiscountStep(null)}
             >
-              Usa sconto
+              Perfetto, grazie!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {discountStep === "denied" && (
+        <div className="discount-popup-backdrop">
+          <div className="discount-popup">
+            <div className="discount-popup-icon">📍</div>
+            <div className="discount-popup-badge">Suggerimento</div>
+            <h2>La prossima volta puoi risparmiare!</h2>
+            <p>
+              Parcheggiando nelle zone incentivate ricevi uno sconto del <strong style={{ color: "#ff9800" }}>10%</strong> sulla corsa. Le zone sono indicate sulla mappa con il simbolo 🎯.
+            </p>
+            <button
+              type="button"
+              className="discount-popup-btn"
+              onClick={() => setDiscountStep(null)}
+            >
+              Ho capito
             </button>
           </div>
         </div>

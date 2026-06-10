@@ -250,6 +250,16 @@ body {
   flex-direction: column;
 }
 
+/* Admin e Operator: layout scorrevole invece di fisso */
+.admin-layout,
+.operator-layout-root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
 .content {
   flex: 1;
   position: relative;
@@ -1952,7 +1962,7 @@ button, input {
 
 /* ── Admin ── */
 .admin-layout {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: #121212;
@@ -2694,26 +2704,45 @@ button, input {
     padding: 6px 10px;
   }
 
-  /* ── Operator sidebar → hidden by default on mobile, shown as bottom sheet ── */
+  /* ── Operator sidebar → compatta su mobile come bottom stats bar ── */
   .operator-sidebar {
     display: none;
+  }
+
+  /* Content area operator: scorrevole su mobile */
+  .operator-layout-root .content {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Mappa operatore: altezza fissa decente su mobile */
+  .operator-layout-root .content > div {
+    min-height: 400px;
   }
 
   /* ── Operator messages layout ── */
   .operator-messages-layout {
     flex-direction: column;
+    min-height: 0;
   }
 
   .operator-inbox {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid #333;
-    max-height: 220px;
+    max-height: 200px;
+    overflow-y: auto;
   }
 
   .operator-thread {
-    height: 0;
-    flex: 1;
+    min-height: 300px;
+  }
+
+  /* Users / areas layout: scorrevole */
+  .operator-users-layout {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 12px;
   }
 
   /* ── Notifications dropdown ── */
@@ -2724,7 +2753,7 @@ button, input {
 
   /* ── Admin navbar ── */
   .admin-content {
-    padding: 14px 12px;
+    padding: 12px 10px;
   }
 
   .admin-grid {
@@ -2732,18 +2761,32 @@ button, input {
     gap: 10px;
   }
 
+  .admin-stat-card {
+    padding: 14px 12px;
+  }
+
   .admin-stat-value {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .admin-panel {
     padding: 14px 12px;
   }
 
+  .admin-panel h3 {
+    font-size: 15px;
+  }
+
+  /* Tabelle admin — scrollabili orizzontalmente */
+  .admin-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+  }
+
   .admin-table {
     font-size: 11px;
-    display: block;
-    overflow-x: auto;
+    min-width: 480px;
   }
 
   .admin-table th,
@@ -2752,20 +2795,49 @@ button, input {
     white-space: nowrap;
   }
 
-  .fleet-grid {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  /* Furti: cards invece di tabella */
+  .stolen-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 
-  /* ── System grid ── */
+  .fleet-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+
+  .fleet-card {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  /* Route rank compatta */
+  .route-rank li {
+    font-size: 12px;
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  /* System grid */
   .system-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
 
-  /* ── Heatmap legend ── */
+  .system-section {
+    padding: 14px 12px;
+  }
+
+  .system-row {
+    font-size: 12px;
+  }
+
+  /* Heatmap legend */
   .heatmap-legend {
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
+    font-size: 11px;
   }
 
   /* ── Profile stats ── */
@@ -2864,5 +2936,125 @@ button, input {
 
   .notifications-dropdown {
     width: 300px;
+  }
+}
+
+/* ── Duration selector (vehicle preview card) ── */
+.duration-selector {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.duration-label {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.duration-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.duration-option {
+  flex: 1;
+  min-width: 36px;
+  padding: 6px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ccc;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.duration-option:hover {
+  border-color: #ff9800;
+  color: #ff9800;
+}
+
+.duration-option--active {
+  background: #ff9800;
+  border-color: #ff9800;
+  color: black;
+}
+
+.duration-cost-preview {
+  font-size: 12px;
+  color: #ccc;
+  text-align: center;
+}
+
+.duration-cost-preview strong {
+  color: #ff9800;
+}
+
+/* ── Admin table wrapper (scrollabile su mobile) ── */
+.admin-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+}
+
+/* ── Admin: assicura scroll verticale su mobile ── */
+@media (max-width: 640px) {
+  html, body {
+    overflow: auto !important;
+    height: auto !important;
+  }
+
+  /* Admin e operator: layout scorrevole */
+  .admin-layout {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: visible;
+  }
+
+  .admin-content {
+    overflow-y: visible;
+    padding: 12px 10px;
+    padding-bottom: 40px;
+  }
+
+  /* Griglia stat admin: 2 colonne compatte */
+  .admin-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-panel--wide {
+    grid-column: 1 / -1;
+  }
+
+  /* Tabella: scroll orizzontale */
+  .admin-table-wrap {
+    overflow-x: auto;
+    margin: 0 -2px;
+  }
+
+  .admin-table {
+    min-width: 420px;
+    font-size: 11px;
+  }
+
+  /* Route rank: testo troncato */
+  .route-rank li span:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+  }
+
+  /* Booking card compatta */
+  .booking-card {
+    padding: 12px;
   }
 }

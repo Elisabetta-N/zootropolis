@@ -335,36 +335,35 @@ export default function AdminShell() {
                 <p>✅ Nessun veicolo rubato segnalato al momento.</p>
               </div>
             ) : (
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Tipo</th>
-                    <th>Latitudine</th>
-                    <th>Longitudine</th>
-                    <th>Batteria</th>
-                    <th>Data segnalazione</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stolenVehicles.map((v) => (
-                    <tr key={v.id} style={{ background: "rgba(192,57,43,0.15)" }}>
-                      <td>
-                        <strong style={{ color: "#e84118" }}>#{v.id}</strong>
-                      </td>
-                      <td>{v.type === "bike" ? "🚲 Bici" : "🛴 Monopattino"}</td>
-                      <td>{v.lat.toFixed(5)}</td>
-                      <td>{v.lng.toFixed(5)}</td>
-                      <td>{v.batteryLevel}%</td>
-                      <td>
-                        {v.stolenAt
-                          ? new Date(v.stolenAt).toLocaleString("it-IT")
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                {/* Tabella desktop */}
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Tipo</th>
+                        <th>Latitudine</th>
+                        <th>Longitudine</th>
+                        <th>Batteria</th>
+                        <th>Data segnalazione</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stolenVehicles.map((v) => (
+                        <tr key={v.id} style={{ background: "rgba(192,57,43,0.15)" }}>
+                          <td><strong style={{ color: "#e84118" }}>#{v.id}</strong></td>
+                          <td>{v.type === "bike" ? "🚲 Bici" : "🛴 Monopattino"}</td>
+                          <td>{v.lat.toFixed(5)}</td>
+                          <td>{v.lng.toFixed(5)}</td>
+                          <td>{v.batteryLevel}%</td>
+                          <td>{v.stolenAt ? new Date(v.stolenAt).toLocaleString("it-IT") : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -416,30 +415,32 @@ export default function AdminShell() {
         {tab === "users" && (
           <div className="admin-panel">
             <h3>Dati utenti</h3>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Email</th>
-                  <th>Città</th>
-                  <th>Documenti</th>
-                  <th>Corse</th>
-                  <th>Iscritto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td>{u.nome}</td>
-                    <td>{u.email}</td>
-                    <td>{u.citta}</td>
-                    <td>{u.documentStatus}</td>
-                    <td>{u._count.bookings}</td>
-                    <td>{new Date(u.createdAt).toLocaleDateString("it-IT")}</td>
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Città</th>
+                    <th>Documenti</th>
+                    <th>Corse</th>
+                    <th>Iscritto</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td>{u.nome}</td>
+                      <td>{u.email}</td>
+                      <td>{u.citta}</td>
+                      <td>{u.documentStatus}</td>
+                      <td>{u._count.bookings}</td>
+                      <td>{new Date(u.createdAt).toLocaleDateString("it-IT")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

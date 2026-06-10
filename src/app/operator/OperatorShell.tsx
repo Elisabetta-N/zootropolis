@@ -232,7 +232,7 @@ export default function OperatorShell() {
   }).length;
 
   return (
-    <div className="dashboard">
+    <div className="dashboard operator-layout-root">
       <nav className="dash-navbar">
         <span className="dash-brand">🛠️ Pannello Operatore</span>
         <div className="dash-nav-links">
