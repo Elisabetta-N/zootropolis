@@ -3058,3 +3058,80 @@ button, input {
     padding: 12px;
   }
 }
+
+/* ── Sort toggle + range filter in SearchBar ── */
+.nearby-vehicles-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.nearby-vehicles-header h4 {
+  font-size: 13px;
+  color: #555;
+  font-weight: bold;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.sort-toggle {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sort-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid #ddd;
+  border-radius: 999px;
+  background: white;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.sort-btn--active {
+  background: #ff9800;
+  border-color: #ff9800;
+  color: black;
+  font-weight: bold;
+}
+
+.range-warning {
+  background: rgba(255, 152, 0, 0.12);
+  border: 1px solid rgba(255, 152, 0, 0.35);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: #c55c00;
+  margin-bottom: 10px;
+}
+
+.nearby-empty-msg {
+  font-size: 13px;
+  color: #888;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.nearby-meta-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.nearby-range {
+  color: #555;
+}
+
+.nearby-margin {
+  display: block;
+  font-size: 11px;
+  font-weight: bold;
+  margin-top: 2px;
+}

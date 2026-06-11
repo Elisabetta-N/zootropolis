@@ -240,6 +240,7 @@ export default function DashboardShell({ suspended }: { suspended: boolean }) {
             onBookVehicle={bookVehicle}
             selectedVehicle={selectedVehicle}
             onSelectVehicle={setSelectedVehicle}
+            routeDistanceMeters={routeDistance}
           />
         </div>
 
